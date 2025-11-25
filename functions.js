@@ -1,5 +1,5 @@
-
-
+// Get the steam IDs of users who are participating in the game session.
+// Id are in the checkbox cell where the user checks that they are involved.
 
 /**
  * Automatically runs whenever a cell is edited in the spreadsheet.
@@ -52,3 +52,5 @@ function grabSteamIdFromActiveUsers(e) {
     // If the checkbox is FALSE, the script takes no action, fulfilling the clearing requirement.
   }
 }
+
+

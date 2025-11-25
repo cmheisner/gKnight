@@ -1,4 +1,3 @@
-
 # 🎮 Item Ownership Analysis and Filtering Project
 
 ## 🎯 Project Goal
@@ -12,6 +11,9 @@ The primary objective is to **retrieve a filtered list of owned items** from a s
 The initial list of enrolled users, item data, and overall project tracking are managed in the following Google Sheet:
 
 [Project Tracking Spreadsheet](https://docs.google.com/spreadsheets/d/1PtWcloteob212EVEY_8CFx_gd04holskCP2B2ZzvSgE/edit?gid=1517685710#gid=1517685710)
+
+• website will be a hyperlink in the game name cell
+• profileUrl will be used as a hyperlink in the persons name cell
 
 ---
 
@@ -35,15 +37,10 @@ The process utilizes two main API calls (`ownedItems` and `itemDetails`) to firs
 
 ## 🔎 Mandatory Filtering Rule
 
-Explicitly exclude the following criteria:
-
-* **Categories**: `Single-Player`
-
 Explicitly include the following criteria:
 
-* **Categories**: `Multi-Player`
+* **Categories**: `Co-op, Multiplayer`
 
-Optional filters can be selected within the spreadsheet
 
 ---
 
