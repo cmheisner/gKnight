@@ -4,7 +4,7 @@ const getAppDetailsBaseUrl = "http://store.steampowered.com/api/appdetails?appid
 const steamAppId = 578080;
 
 function fetchAppData() {
-    
+
     // 1. Define the API endpoint URL for the app.
     const apiUrl = `${getAppDetailsBaseUrl}${steamAppId}`;
 
@@ -21,11 +21,11 @@ function fetchAppData() {
         }
 
         const gameDetails = appResponse.data;
-        
+
         // 3. Get the Google Sheet and the specific sheet you want to write to.
         let ss = SpreadsheetApp.openById(SPREADHSEET_ID);
         let sheet = ss.getSheetByName("Game Info");
-        
+
         // Define the headers that correspond to the data we want
         const HEADERS = ["App ID", "Name", "Short Description", "Website", "Categories", "Genres", "Image"];
 
@@ -35,7 +35,7 @@ function fetchAppData() {
             sheet.appendRow(HEADERS);
         } else {
             // Clear previous content and write new headers
-            sheet.clear(); 
+            sheet.clear();
             sheet.appendRow(HEADERS);
         }
 
@@ -54,13 +54,13 @@ function fetchAppData() {
             formatArrayField(gameDetails.genres),
             gameDetails.header_image // Assuming 'header_image' is a good image URL
         ];
-        
+
         // Wrap the single row in an array since setValues expects an array of arrays
         const rows = [row];
 
         // 5. Write the data to the sheet starting from cell A2.
         sheet.getRange(2, 1, rows.length, HEADERS.length).setValues(rows);
-        
+
         Logger.log("Data successfully fetched and written to the sheet!");
 
     } catch (e) {
