@@ -1,5 +1,3 @@
-// ALL SCRIPTS COMPILED
-
 // ========================================
 // 📋 CONFIGURATION
 // ========================================
@@ -489,32 +487,57 @@ function writeGameDetailsToFinalList(gameDetails) {
         sheet.getRange(startRow, CONFIG.FINAL_LIST.DESCRIPTION_COLUMN, lastRow - startRow + 1, 1).clearContent();
     }
 
-    // Prepare data for each column
+    // Create a map of App ID to game details for fast lookup
+    const gameDetailsMap = {};
+    gameDetails.forEach(game => {
+        gameDetailsMap[game.steam_appid] = game;
+    });
+
+    // Read App IDs from Common Games sheet to match the order in Final List
+    const commonSheet = ss.getSheetByName(CONFIG.SHEETS.COMMON_GAMES);
+    if (!commonSheet) {
+        log("Common Games sheet not found!", 'error');
+        return;
+    }
+
+    const commonLastRow = commonSheet.getLastRow();
+    if (commonLastRow < 2) {
+        log("No games in Common Games sheet", 'warning');
+        return;
+    }
+
+    const commonGamesData = commonSheet.getRange(2, 1, commonLastRow - 1, 2).getValues();
+
+    // Prepare data for each column, matching by App ID
     const imageFormulas = [];
     const categories = [];
     const genres = [];
     const descriptions = [];
 
-    gameDetails.forEach(game => {
-        // Column A: Image formula
-        const imageUrl = game.header_image || '';
-        const imageFormula = imageUrl ? `=IMAGE("${imageUrl}")` : '';
-        imageFormulas.push([imageFormula]);
+    commonGamesData.forEach(([appId, gameName]) => {
+        const game = gameDetailsMap[appId];
 
-        // Column K: Categories
-        categories.push([formatArrayField(game.categories)]);
-
-        // Column L: Genres
-        genres.push([formatArrayField(game.genres)]);
-
-        // Column M: Short Description
-        descriptions.push([game.short_description || 'N/A']);
+        if (game) {
+            // Game details found
+            const imageUrl = game.header_image || '';
+            const imageFormula = imageUrl ? `=IMAGE("${imageUrl}")` : '';
+            imageFormulas.push([imageFormula]);
+            categories.push([formatArrayField(game.categories)]);
+            genres.push([formatArrayField(game.genres)]);
+            descriptions.push([game.short_description || 'N/A']);
+        } else {
+            // Game details not available (API failed or game not found)
+            imageFormulas.push(['']);
+            categories.push(['N/A']);
+            genres.push(['N/A']);
+            descriptions.push(['N/A']);
+            log(`No details available for App ID ${appId} (${gameName})`, 'warning');
+        }
     });
 
     // Write all data
     if (imageFormulas.length > 0) {
         // Write image formulas to Column A
-        const imageRange = sheet.getRange(startRow, CONFIG.FINAL_LIST.GAME_IMAGE_COLUMN, imageFormulas.length, 1);
         imageFormulas.forEach((formula, index) => {
             if (formula[0]) {
                 sheet.getRange(startRow + index, CONFIG.FINAL_LIST.GAME_IMAGE_COLUMN).setFormula(formula[0]);
@@ -530,12 +553,13 @@ function writeGameDetailsToFinalList(gameDetails) {
         // Write descriptions to Column M
         sheet.getRange(startRow, CONFIG.FINAL_LIST.DESCRIPTION_COLUMN, descriptions.length, 1).setValues(descriptions);
 
-        log(`Wrote game details for ${gameDetails.length} games to Final List`, 'success');
+        log(`Wrote game details for ${imageFormulas.length} games to Final List`, 'success');
     }
 }
 
 /**
  * Writes common games to Final List starting at row 4 in COLUMN B
+ * Game names are hyperlinked to their Steam Store pages
  */
 function writeCommonGamesToFinalList(allUsersGames) {
     log("Writing common games to Final List...", 'write');
@@ -562,18 +586,32 @@ function writeCommonGamesToFinalList(allUsersGames) {
         ).clearContent();
     }
 
-    // Write game names to COLUMN B
+    // Write game names with hyperlinks to COLUMN B
     if (commonGames.length > 0) {
-        const gameNames = commonGames.map(game => [game.name]);
-        sheet.getRange(
+        // Create HYPERLINK formulas for each game
+        const gameFormulas = commonGames.map(game => {
+            const steamUrl = `https://store.steampowered.com/app/${game.appid}/`;
+            return [`=HYPERLINK("${steamUrl}", "${game.name}")`];
+        });
+
+        // Write formulas to the range
+        const range = sheet.getRange(
             CONFIG.FINAL_LIST.GAMES_START_ROW,
             CONFIG.FINAL_LIST.GAMES_COLUMN,
-            gameNames.length,
+            gameFormulas.length,
             1
-        ).setValues(gameNames);
+        );
+
+        // Set formulas one by one to avoid potential issues with bulk formula setting
+        gameFormulas.forEach((formula, index) => {
+            sheet.getRange(
+                CONFIG.FINAL_LIST.GAMES_START_ROW + index,
+                CONFIG.FINAL_LIST.GAMES_COLUMN
+            ).setFormula(formula[0]);
+        });
     }
 
-    log(`Wrote ${commonGames.length} common games to Final List (Column B)`, 'success');
+    log(`Wrote ${commonGames.length} common games with hyperlinks to Final List (Column B)`, 'success');
 
     // Return the common games for use by other functions
     return commonGames;
@@ -798,4 +836,92 @@ function fetchSingleUserGames() {
     }
 
     log("=== SINGLE USER FETCH COMPLETE ===", 'success');
+}
+
+
+
+
+
+
+
+
+
+
+
+
+// Run full script including game details.
+
+function runCompleteUpdate() {
+    log("=== 🚀 STARTING COMPLETE SYSTEM UPDATE 🚀 ===", 'start');
+    log("This will update ALL data: users, games, and detailed game information", 'info');
+
+    const startTime = new Date();
+
+    try {
+        // Step 1: Run the basic update (users + games)
+        log("📋 Step 1/2: Running basic update (users + games)...", 'info');
+        updateEverything();
+
+        // Step 2: Add detailed game information
+        log("📋 Step 2/2: Fetching detailed game information...", 'info');
+        log("⏳ This step will be slow due to Steam Store API rate limits...", 'warning');
+        sleepWithLog(CONFIG.RATE_LIMIT_MS, "Waiting before game info update");
+        updateGameInfoFromCommonGames();
+
+        // Calculate and log total time
+        const endTime = new Date();
+        const durationMs = endTime - startTime;
+        const durationMin = (durationMs / 1000 / 60).toFixed(2);
+
+        log(`⏱️ Total execution time: ${durationMin} minutes`, 'info');
+        log("=== ✅ COMPLETE SYSTEM UPDATE FINISHED SUCCESSFULLY ✅ ===", 'success');
+        log("All data has been refreshed! Check your sheets.", 'success');
+
+    } catch (error) {
+        log(`Fatal error during complete update: ${error.toString()}`, 'error');
+        throw error;
+    }
+}
+
+/**
+ * Alternative: Run only the game info update
+ * Use this if you've already run updateEverything() and just need the detailed game info
+ */
+function runGameInfoUpdateOnly() {
+    log("=== RUNNING GAME INFO UPDATE ONLY ===", 'start');
+    log("⚠️ Make sure you've run updateEverything() first!", 'warning');
+
+    try {
+        updateGameInfoFromCommonGames();
+        log("=== GAME INFO UPDATE COMPLETE ===", 'success');
+    } catch (error) {
+        log(`Error during game info update: ${error.toString()}`, 'error');
+        throw error;
+    }
+}
+
+function runFullScriptByButtonPress() {
+    // 1. Get the button's cell (assuming you placed the drawing over cell A1)
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getActiveSheet();
+    const buttonCell = sheet.getRange("A3"); // Change this to the cell *under* your button
+
+    // 2. Visually indicate "Running..."
+    buttonCell.setValue("Running...");
+    SpreadsheetApp.flush(); // Forces the UI update immediately
+
+    // --- Start of the actual script's work ---
+    // A small delay to let the user see the change
+    Utilities.sleep(500); // Wait 0.5 seconds
+
+    // **YOUR MAIN SCRIPT LOGIC GOES HERE**
+    // Example: Get data, process calculations, etc.
+    runCompleteUpdate();
+    // --- End of the actual script's work ---
+
+    // 3. Visually indicate "Done!"
+    buttonCell.setValue("Complete!");
+    // Optional: Set back to original text after a delay
+    Utilities.sleep(1000); // Wait 1 second
+    buttonCell.setValue("Script Run Complete");
 }
