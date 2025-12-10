@@ -1,4 +1,0 @@
-• Add a button on the spreadsheet that will trigger all of the functions and API request to occur. 
-• Dynamically pull the image URL for the respective user when the API (getPlayerSummaries) occurs. 
-• Pull categories, genres, and descriptions of the games for the "Final List" respective columns. 
-• Add a URL to the game name that takes the user to the steam page
