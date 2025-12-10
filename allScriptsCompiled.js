@@ -42,7 +42,7 @@ const CONFIG = {
     },
 
     // Rate Limiting
-    RATE_LIMIT_MS: 2000 // 2 seconds between API calls
+    RATE_LIMIT_MS: 450 // milliseconds between API calls
 };
 
 // ========================================
